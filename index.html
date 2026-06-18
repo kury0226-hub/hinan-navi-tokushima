@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="津波避難ナビ">
+  <title>らくらく津波避難ナビ 徳島市版</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root {
+      --bg: #f3f4f6;
+      --text: #111827;
+      --muted: #4b5563;
+      --header: #0f172a;
+      --primary: #2563eb;
+      --secondary: #e5e7eb;
+      --safe: #16a34a;
+      --warning: #f59e0b;
+      --danger: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      -webkit-text-size-adjust: 100%;
+    }
+
+    header {
+      background: var(--header);
+      color: white;
+      text-align: center;
+      padding: 16px 12px calc(16px + env(safe-area-inset-top));
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    h1 {
+      font-size: clamp(21px, 5vw, 28px);
+      margin: 0;
+      line-height: 1.35;
+    }
+
+    main {
+      max-width: 850px;
+      margin: auto;
+      padding: 14px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    }
+
+    button, a.map-link {
+      width: 100%;
+      min-height: 58px;
+      font-size: clamp(19px, 5vw, 25px);
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      margin: 10px 0;
+      font-weight: 800;
+      cursor: pointer;
+      display: block;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    button:active, a.map-link:active { transform: scale(0.99); }
+
+    .primary { background: var(--primary); color: white; }
+    .secondary { background: var(--secondary); color: var(--text); }
+    .danger-button { background: var(--danger); color: white; }
+
+    .card {
+      background: white;
+      padding: 16px;
+      margin: 14px 0;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      font-size: clamp(17px, 4.6vw, 21px);
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+
+    .safe { border-left: 12px solid var(--safe); }
+    .warning { border-left: 12px solid var(--warning); }
+    .danger { border-left: 12px solid var(--danger); }
+
+    .small {
+      font-size: clamp(14px, 3.8vw, 16px);
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .notice {
+      border-left: 12px solid var(--primary);
+    }
+
+    #map {
+      width: 100%;
+      height: min(58vh, 430px);
+      min-height: 300px;
+      border-radius: 14px;
+      margin-top: 14px;
+      display: none;
+      background: #d1d5db;
+    }
+
+    #manualBox {
+      display: none;
+      background: white;
+      padding: 14px;
+      border-radius: 14px;
+      margin: 14px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-top: 10px;
+      font-size: clamp(17px, 4.5vw, 20px);
+    }
+
+    input {
+      width: 100%;
+      font-size: clamp(18px, 5vw, 22px);
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #9ca3af;
+      margin-top: 4px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 520px) {
+      main { padding: 10px; }
+      .card { padding: 14px; }
+      .row { grid-template-columns: 1fr; gap: 0; }
+    }
+  </style>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+
+<body>
+  <header>
+    <h1>らくらく津波避難ナビ<br>徳島市版</h1>
+  </header>
+
+  <main>
+    <div class="card small">
+      <strong>スマホでアプリのように使う方法</strong><br>
+      iPhone：Safariで開く → 共有ボタン → 「ホーム画面に追加」<br>
+      Android：Chromeで開く → メニュー → 「ホーム画面に追加」または「アプリをインストール」
+    </div>
+
+    <div class="card notice">
+      <strong>スマホ用に使いやすくした版です。</strong><br>
+      GPSで現在地を取得し、徳島市内の避難場所候補から近い場所を表示します。<br>
+      位置情報が使えない場合は、手入力でも判定できます。
+      <div class="small" id="secureNotice"></div>
+    </div>
+
+    <button class="primary" onclick="getGPSLocation()">GPSで現在地を取得する</button>
+    <button class="secondary" onclick="showManualInput()">GPSが使えない場合は手入力</button>
+
+    <div id="manualBox">
+      <div class="small">
+        徳島市中心部の例を初期値にしています。Googleマップ等で調べた緯度・経度に変えてください。
+      </div>
+      <div class="row">
+        <div>
+          <label for="latInput">緯度</label>
+          <input id="latInput" type="number" inputmode="decimal" step="0.000001" value="34.0700" aria-label="緯度">
+        </div>
+        <div>
+          <label for="lonInput">経度</label>
+          <input id="lonInput" type="number" inputmode="decimal" step="0.000001" value="134.5500" aria-label="経度">
+        </div>
+      </div>
+      <button class="primary" onclick="useManualLocation()">この位置で判定する</button>
+    </div>
+
+    <div id="result"></div>
+    <div id="map"></div>
+  </main>
+
+  <script>
+    const TSUNAMI_TIME_MIN = 41;
+    const TSUNAMI_HEIGHT_M = 5.2;
+    const WALK_SPEED = 0.8;
+    const DETOUR_FACTOR = 1.4;
+
+    let map = null;
+    let markerLayer = null;
+    let routeLayer = null;
+
+    const shelters = [
+      { name: "徳島市立内町小学校", place: "校舎上階など", lat: 34.0710, lon: 134.5537 },
+      { name: "徳島市立新町小学校", place: "校舎上階など", lat: 34.0664, lon: 134.5427 },
+      { name: "徳島市立富田小学校", place: "校舎上階など", lat: 34.0613, lon: 134.5551 },
+      { name: "徳島市立昭和小学校", place: "校舎上階など", lat: 34.0561, lon: 134.5639 },
+      { name: "徳島市立福島小学校", place: "校舎上階など", lat: 34.0664, lon: 134.5761 },
+      { name: "徳島市立城東小学校", place: "校舎上階など", lat: 34.0684, lon: 134.5847 },
+      { name: "徳島市立助任小学校", place: "校舎上階など", lat: 34.0820, lon: 134.5610 },
+      { name: "徳島市立佐古小学校", place: "校舎上階など", lat: 34.0755, lon: 134.5380 },
+      { name: "徳島市立千松小学校", place: "校舎上階など", lat: 34.0827, lon: 134.5407 },
+      { name: "徳島市立加茂名小学校", place: "校舎上階など", lat: 34.0715, lon: 134.5190 },
+      { name: "徳島市立沖洲小学校", place: "校舎上階など", lat: 34.0740, lon: 134.5990 },
+      { name: "徳島市立津田小学校", place: "校舎上階など", lat: 34.0430, lon: 134.5850 },
+      { name: "徳島市立体育館（とくぎんトモニアリーナ）", place: "公共施設", lat: 34.0746, lon: 134.5525 },
+      { name: "徳島県庁", place: "公共施設", lat: 34.0659, lon: 134.5593 },
+      { name: "アスティとくしま", place: "公共施設", lat: 34.0526, lon: 134.5710 }
+    ];
+
+    window.addEventListener("load", function() {
+      const notice = document.getElementById("secureNotice");
+      if (location.protocol !== "https:" && location.hostname !== "localhost" && location.protocol !== "file:") {
+        notice.innerHTML = "<br>※GPSを使うには、httpsで始まるURLで公開して開く必要があります。";
+      } else if (location.protocol === "file:") {
+        notice.innerHTML = "<br>※スマホでGPSを使うには、HTMLファイルを直接開くより、GitHub Pagesなどでhttps公開して開くのがおすすめです。";
+      }
+    });
+
+    function getGPSLocation() {
+      const result = document.getElementById("result");
+      result.innerHTML = "<div class='card'>現在地を取得しています...<br><span class='small'>スマホの画面に位置情報の許可が出たら、許可を押してください。</span></div>";
+
+      if (!navigator.geolocation) {
+        result.innerHTML = "<div class='card danger'>この端末ではGPSが使えません。手入力を使ってください。</div>";
+        showManualInput();
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        function(position) {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const accuracy = position.coords.accuracy;
+          judgeShelters(lat, lon, accuracy, "GPS");
+        },
+        function(error) {
+          let message = "現在地を取得できませんでした。";
+          if (error.code === error.PERMISSION_DENIED) {
+            message = "位置情報が許可されていません。ブラウザまたはスマホの設定で位置情報を許可してください。";
+          } else if (error.code === error.TIMEOUT) {
+            message = "GPS取得が時間切れになりました。屋外や窓際で再度試すか、手入力を使ってください。";
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            message = "現在地を利用できません。屋外や窓際で再度試してください。";
+          }
+          result.innerHTML = `<div class='card danger'>${message}</div>`;
+          showManualInput();
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 30000
+        }
+      );
+    }
+
+    function showManualInput() {
+      document.getElementById("manualBox").style.display = "block";
+      document.getElementById("manualBox").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function useManualLocation() {
+      const lat = Number(document.getElementById("latInput").value);
+      const lon = Number(document.getElementById("lonInput").value);
+      if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        document.getElementById("result").innerHTML = "<div class='card danger'>緯度・経度を正しく入力してください。</div>";
+        return;
+      }
+      judgeShelters(lat, lon, null, "手入力");
+    }
+
+    function judgeShelters(userLat, userLon, accuracy, source) {
+      const calculated = shelters.map(function(shelter) {
+        const straightDistance = calcDistance(userLat, userLon, shelter.lat, shelter.lon);
+        const distance = straightDistance * DETOUR_FACTOR;
+        const walkTimeMin = distance / WALK_SPEED / 60;
+        const marginMin = TSUNAMI_TIME_MIN - walkTimeMin;
+
+        let className = "safe";
+        let level = "安全度：高い";
+        let message = "津波到達まで余裕があります。";
+        if (marginMin < 0) {
+          className = "danger";
+          level = "危険";
+          message = "間に合わない可能性があります。より近い高い場所を検討してください。";
+        } else if (marginMin < 10) {
+          className = "warning";
+          level = "注意";
+          message = "余裕が少ないため、すぐに避難してください。";
+        }
+        return { ...shelter, distance, walkTimeMin, marginMin, className, level, message };
+      }).sort(function(a, b) { return a.walkTimeMin - b.walkTimeMin; });
+
+      const top3 = calculated.slice(0, 3);
+      let html = `
+        <div class="card">
+          <strong>現在地を取得しました</strong><br>
+          取得方法：${source}<br>
+          現在地：<span id="addressText">住所を取得中...</span><br>
+          ${accuracy !== null ? `GPS誤差：約${Math.round(accuracy)}m<br>` : ""}
+          <span class="small">
+            想定津波到達時間：${TSUNAMI_TIME_MIN}分<br>
+            想定津波高さ：約${TSUNAMI_HEIGHT_M}m<br>
+            想定歩行速度：${WALK_SPEED}m/s<br>
+            ※距離は直線距離に係数${DETOUR_FACTOR}をかけた概算です。
+          </span>
+        </div>
+      `;
+
+      top3.forEach(function(shelter, index) {
+        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${shelter.lat},${shelter.lon}&travelmode=walking`;
+        html += `
+          <div class="card ${shelter.className}">
+            <strong>第${index + 1}候補：${shelter.name}</strong><br>
+            避難場所：${shelter.place}<br>
+            推定距離：約${Math.round(shelter.distance)}m<br>
+            徒歩時間：約${shelter.walkTimeMin.toFixed(1)}分<br>
+            余裕時間：約${shelter.marginMin.toFixed(1)}分<br>
+            <strong>${shelter.level}</strong><br>
+            ${shelter.message}
+            <a class="map-link primary" href="${googleMapsUrl}" target="_blank" rel="noopener">Googleマップで徒歩経路を開く</a>
+          </div>
+        `;
+      });
+
+      html += `
+        <div class="card small danger">
+          <strong>重要</strong><br>
+          これは授業用の試作アプリです。実際の避難では、自治体・気象庁・消防などの公式情報に従ってください。<br>
+          避難場所名と緯度経度は試作用データです。提出・実運用前には徳島市公式の津波避難ビル・避難場所一覧で必ず照合してください。<br>
+          津波避難では、近さだけでなく、標高・建物の高さ・浸水想定・道路状況も重要です。
+        </div>
+      `;
+
+      document.getElementById("result").innerHTML = html;
+      getAddress(userLat, userLon);
+      if (top3.length > 0) showMap(userLat, userLon, top3[0]);
+    }
+
+    function getAddress(lat, lon) {
+      const url = `https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat}&lon=${lon}`;
+      fetch(url)
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+          const level = data.results && data.results.lv01Nm ? data.results.lv01Nm : "";
+          const address = level ? `徳島市付近 ${level}` : "住所を取得できませんでした";
+          const el = document.getElementById("addressText");
+          if (el) el.textContent = address;
+        })
+        .catch(function() {
+          const el = document.getElementById("addressText");
+          if (el) el.textContent = "住所を取得できませんでした";
+        });
+    }
+
+    function showMap(userLat, userLon, shelter) {
+      const mapDiv = document.getElementById("map");
+      mapDiv.style.display = "block";
+      if (typeof L === "undefined") {
+        mapDiv.innerHTML = "<div class='card danger'>地図ライブラリを読み込めませんでした。インターネット接続を確認してください。</div>";
+        return;
+      }
+      if (!map) {
+        map = L.map("map", { tap: true }).setView([userLat, userLon], 15);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "© OpenStreetMap contributors"
+        }).addTo(map);
+      }
+      setTimeout(function() { map.invalidateSize(); }, 250);
+      if (markerLayer) markerLayer.clearLayers();
+      if (routeLayer) routeLayer.remove();
+      markerLayer = L.layerGroup().addTo(map);
+      L.marker([userLat, userLon]).addTo(markerLayer).bindPopup("現在地");
+      L.marker([shelter.lat, shelter.lon]).addTo(markerLayer).bindPopup(`避難先：${shelter.name}`);
+      const bounds = L.latLngBounds([[userLat, userLon], [shelter.lat, shelter.lon]]);
+      map.fitBounds(bounds, { padding: [40, 40] });
+
+      const routeUrl = `https://router.project-osrm.org/route/v1/foot/${userLon},${userLat};${shelter.lon},${shelter.lat}?overview=full&geometries=geojson`;
+      fetch(routeUrl)
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+          if (!data.routes || data.routes.length === 0) throw new Error("route not found");
+          const points = data.routes[0].geometry.coordinates.map(function(p) { return [p[1], p[0]]; });
+          routeLayer = L.polyline(points, { weight: 6 }).addTo(map);
+        })
+        .catch(function() {
+          routeLayer = L.polyline([[userLat, userLon], [shelter.lat, shelter.lon]], { weight: 6, dashArray: "10, 10" }).addTo(map);
+        });
+    }
+
+    function calcDistance(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const radLat1 = lat1 * Math.PI / 180;
+      const radLat2 = lat2 * Math.PI / 180;
+      const diffLat = (lat2 - lat1) * Math.PI / 180;
+      const diffLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(diffLat / 2) * Math.sin(diffLat / 2) +
+        Math.cos(radLat1) * Math.cos(radLat2) *
+        Math.sin(diffLon / 2) * Math.sin(diffLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    }
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').catch(function(error) {
+          console.log('Service Worker registration failed:', error);
+        });
+      });
+    }
+  </script>
+</body>
+</html>
