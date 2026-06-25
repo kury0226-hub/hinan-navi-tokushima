@@ -232,10 +232,69 @@
     const DETOUR_FACTOR = 1.4;
 
     let map = null;
+
+window.addEventListener("DOMContentLoaded", function() {
+      const savedShelters = JSON.parse(localStorage.getItem('customShelters')) || [];
+      shelters = shelters.concat(savedShelters);
+    });
+
+    // 追加フォームの表示・非表示を切り替える関数
+    function toggleAddShelterBox() {
+      const box = document.getElementById("addShelterBox");
+      if (box.style.display === "none" || box.style.display === "") {
+        box.style.display = "block";
+        box.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        box.style.display = "none";
+      }
+    }
+
+    // 新しい避難所をブラウザに保存する関数
+    function addNewShelter() {
+      const name = document.getElementById("newShelterName").value.trim();
+      const place = document.getElementById("newShelterPlace").value.trim();
+      const lat = Number(document.getElementById("newShelterLat").value);
+      const lon = Number(document.getElementById("newShelterLon").value);
+
+      if (!name || !lat || !lon) {
+        alert("「名前」「緯度」「経度」は必ず入力してください！");
+        return;
+      }
+      if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        alert("緯度・経度の数値が正しくありません。");
+        return;
+      }
+
+      const newShelter = {
+        name: name,
+        place: place || "指定なし",
+        lat: lat,
+        lon: lon
+      };
+
+      // 今動いているリストに追加
+      shelters.push(newShelter);
+
+      // LocalStorageに保存
+      const currentSaved = JSON.parse(localStorage.getItem('customShelters')) || [];
+      currentSaved.push(newShelter);
+      localStorage.setItem('customShelters', JSON.stringify(currentSaved));
+
+      alert(`「${name}」を登録しました！\n次回の判定から計算の対象に含まれます。`);
+
+      // 入力欄をクリアして閉じる
+      document.getElementById("newShelterName").value = "";
+      document.getElementById("newShelterPlace").value = "";
+      document.getElementById("newShelterLat").value = "";
+      document.getElementById("newShelterLon").value = "";
+      document.getElementById("addShelterBox").style.display = "none";
+    }
+    // ▲▲ ここまで付け足し ▲▲
+    
     let markerLayer = null;
     let routeLayer = null;
 
-    const shelters = [
+    let shelters = [
       { name: "徳島市立内町小学校", place: "校舎上階など", lat: 34.0710, lon: 134.5537 },
       { name: "徳島市立新町小学校", place: "校舎上階など", lat: 34.0664, lon: 134.5427 },
       { name: "徳島市立富田小学校", place: "校舎上階など", lat: 34.0613, lon: 134.5551 },
