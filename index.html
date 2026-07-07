@@ -246,34 +246,10 @@
     const WALK_SPEED = 0.4;
     const DETOUR_FACTOR = 1.6;
 
-  var TRIVIA_LIST = [
-      "津波は第1波よりも、後から来る第2波・第3波の方が高くなることがあります。警報が解除されるまで絶対に海岸に近づかないでください。",
-      "津波避難の基本は「より高く、より安全な場所へ」です。近くに高台がない場合は、鉄筋コンクリート造の「津波避難ビル」の3階以上に逃げましょう。",
-      "水深が足首程度であっても、津波は流れが非常に強いため、大人の足元をすくって押し流す威力があります。",
-      "車での避難は渋滞を引き起こし、巻き込まれる危険が高いため、原則「徒歩」で動くことが推奨されています。",
-      "避難するときは長靴ではなく、スニーカーなどの履き慣れた靴を履きましょう。長靴は水が入ると重くて歩けなくなります。"
-    ];
-
-    // 💡 豆知識をランダム表示する関数
-    function showRandomTrivia() {
-      const txtEl = document.getElementById("triviaText");
-      if (txtEl) {
-        const randomIndex = Math.floor(Math.random() * TRIVIA_LIST.length);
-        txtEl.textContent = TRIVIA_LIST[randomIndex];
-      }
-    }
+ 
 
     let map = null;
-    let markerLayer = null;
-    let routeLayer = null;
-    let shelters = [];
-
-    // 💡 アプリ起動時にデータを読み込み、豆知識を表示
-    window.addEventListener("DOMContentLoaded", function() {
-      const savedShelters = JSON.parse(localStorage.getItem('customShelters')) || [];
-      shelters = shelters.concat(savedShelters);
-      showRandomTrivia();
-    });
+    
 
 
 window.addEventListener("DOMContentLoaded", function() {
