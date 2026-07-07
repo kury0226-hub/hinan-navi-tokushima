@@ -384,18 +384,17 @@ window.addEventListener("DOMContentLoaded", function() {
         const marginMin = TSUNAMI_TIME_MIN - walkTimeMin;
 
         let className = "safe";
-        let level = "安全度：高い";
+       
         let message = "津波到達まで余裕があります。";
         if (marginMin < 0) {
           className = "danger";
-          level = "危険";
           message = "間に合わない可能性があります。より近い高い場所を検討してください。";
         } else if (marginMin < 10) {
           className = "warning";
-          level = "注意";
+         
           message = "余裕が少ないため、すぐに避難してください。";
         }
-        return { ...shelter, distance, walkTimeMin, marginMin, className, level, message };
+        return { ...shelter, distance, walkTimeMin, marginMin, className, message };
       }).sort(function(a, b) { return a.walkTimeMin - b.walkTimeMin; });
 
       const top3 = calculated.slice(0, 3);
@@ -423,7 +422,7 @@ window.addEventListener("DOMContentLoaded", function() {
             推定距離：約${Math.round(shelter.distance)}m<br>
             徒歩時間：約${shelter.walkTimeMin.toFixed(1)}分<br>
             余裕時間：約${shelter.marginMin.toFixed(1)}分<br>
-            <strong>${shelter.level}</strong><br>
+            
             ${shelter.message}
             <a class="map-link primary" href="${googleMapsUrl}" target="_blank" rel="noopener">Googleマップで徒歩経路を開く</a>
           </div>
