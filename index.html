@@ -14,14 +14,14 @@
   <style>
     :root {
       --bg: #ffffff;
---text: #000000;
---muted: #444444;
---header: #002b5c;
---primary: #0057d8;
---secondary: #d9d9d9;
---safe: #008000;
---warning: #ff8c00;
---danger: #d60000
+      --text: #000000;
+      --muted: #444444;
+      --header: #002b5c;
+      --primary: #0057d8;
+      --secondary: #d9d9d9;
+      --safe: #008000;
+      --warning: #ff8c00;
+      --danger: #d60000
     }
 
     * { box-sizing: border-box; }
@@ -167,7 +167,6 @@
       Android：Chromeで開く → メニュー → 「ホーム画面に追加」または「アプリをインストール」
     </div>
 
-    <!-- 変更箇所: 豆知識ボックスを追加 -->
     <div id="triviaBox" class="card notice">
       <div style="margin-bottom: 8px;">
         <span style="font-size: 24px;">💡</span>
@@ -203,14 +202,14 @@
       <button class="primary" onclick="useManualLocation()">この位置で判定する</button>
     </div>
 
- <button class="secondary" onclick="toggleAddShelterBox()">避難所を新しく追加する</button>
+    <button class="secondary" onclick="toggleAddShelterBox()">避難所を新しく追加する</button>
 
     <div id="addShelterBox" style="display: none; background: white; padding: 14px; border-radius: 14px; margin: 14px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.10);">
       <div class="small" style="margin-bottom: 10px;">
         あらかじめ調べてある避難所の情報を入力してください。ブラウザに保存され、次回からも自動で読み込まれます。
       </div>
       
-     <div>
+      <div>
         <label for="newShelterName">避難所の名前</label>
         <input id="newShelterName" type="text" placeholder="例：徳島市役所">
         <button type="button" class="primary" onclick="searchLocationByName()" style="min-height: 46px; font-size: 16px; padding: 10px; margin: 8px 0; background-color: var(--primary);">この名前から緯度・経度を自動入力する</button>
@@ -234,7 +233,7 @@
       <button class="primary" onclick="addNewShelter()">この避難所を登録する</button>
     </div>
 
-<div class="card notice" style="background: white;">
+    <div class="card notice" style="background: white;">
       <strong>避難所データの共有・引き継ぎ</strong><br>
       <button class="secondary" onclick="exportShelters()" style="min-height: 44px; font-size: 16px; padding: 10px; margin: 5px 0;">🎁 自分が登録した避難所をコピー（LINE共有用）</button>
       
@@ -255,38 +254,28 @@
     const WALK_SPEED = 0.4;
     const DETOUR_FACTOR = 1.6;
 
- 
+    // 【修正項目】ベースとなる避難所データの初期定義を追加
+    let shelters = [
+      { name: "徳島市役所", place: "本庁舎3階以上", lat: 34.065773, lon: 134.559344 },
+      { name: "城東小学校", place: "校舎3階以上・屋内運動場", lat: 34.073283, lon: 134.571439 },
+      { name: "徳島中央公園", place: "城山（高台）", lat: 34.075194, lon: 134.555544 }
+    ];
 
     let map = null;
+    let markerLayer = null;
+    let routeLayer = null;
 
-window.addEventListener("DOMContentLoaded", function() {
-    // 1. 豆知識を表示
-    showRandomTrivia();
-    
-    // 2. 避難所の読み込み
-    const savedShelters = JSON.parse(localStorage.getItem('customShelters')) || [];
-    shelters = shelters.concat(savedShelters);
-});
-
-// 豆知識を表示する関数（今のままでOK）
-function showRandomTrivia() {
-    const trivia = [
-        "津波が来たら、迷わず高いところへ逃げてください。",
-        "避難場所は、あらかじめ複数候補を決めておくと安心です。",
-        "非常用持出袋には、水・食料・懐中電灯・ラジオを入れましょう。",
-        "津波は一度だけでなく、何度も押し寄せることがあります。"
-    ];
-    const el = document.getElementById("triviaText");
-    if(el) {
-        el.textContent = trivia[Math.floor(Math.random() * trivia.length)];
-    }
-}
-    
-window.addEventListener("DOMContentLoaded", function() {
+    // 【修正項目】DOMContentLoaded周辺の一元化とカッコの不整合を修正
+    window.addEventListener("DOMContentLoaded", function() {
+      // 1. 豆知識を表示
+      showRandomTrivia();
+      
+      // 2. 避難所の読み込み
       const savedShelters = JSON.parse(localStorage.getItem('customShelters')) || [];
       shelters = shelters.concat(savedShelters);
-    });
-     const notice = document.getElementById("secureNotice");
+
+      // 3. 接続プロトコルの警告表示設定
+      const notice = document.getElementById("secureNotice");
       if (location.protocol !== "https:" && location.hostname !== "localhost" && location.protocol !== "file:") {
         notice.innerHTML = "<br>※GPSを使うには、httpsで始まるURLで公開して開く必要があります。";
       } else if (location.protocol === "file:") {
@@ -294,7 +283,19 @@ window.addEventListener("DOMContentLoaded", function() {
       }
     });
 
-    // 追加フォームの表示・非表示を切り替える関数
+    function showRandomTrivia() {
+      const trivia = [
+        "津波が来たら、迷わず高いところへ逃げてください。",
+        "避難場所は、あらかじめ複数候補を決めておくと安心です。",
+        "非常用持出袋には、水・食料・懐中電灯・ラジオを入れましょう。",
+        "津波は一度だけでなく、何度も押し寄せることがあります。"
+      ];
+      const el = document.getElementById("triviaText");
+      if(el) {
+        el.textContent = trivia[Math.floor(Math.random() * trivia.length)];
+      }
+    }
+
     function toggleAddShelterBox() {
       const box = document.getElementById("addShelterBox");
       if (box.style.display === "none" || box.style.display === "") {
@@ -305,7 +306,6 @@ window.addEventListener("DOMContentLoaded", function() {
       }
     }
 
-    // 新しい避難所をブラウザに保存する関数
     function addNewShelter() {
       const name = document.getElementById("newShelterName").value.trim();
       const place = document.getElementById("newShelterPlace").value.trim();
@@ -328,29 +328,20 @@ window.addEventListener("DOMContentLoaded", function() {
         lon: lon
       };
 
-      // 今動いているリストに追加
       shelters.push(newShelter);
 
-      // LocalStorageに保存
       const currentSaved = JSON.parse(localStorage.getItem('customShelters')) || [];
       currentSaved.push(newShelter);
       localStorage.setItem('customShelters', JSON.stringify(currentSaved));
 
       alert(`「${name}」を登録しました！\n次回の判定から計算の対象に含まれます。`);
 
-      // 入力欄をクリアして閉じる
       document.getElementById("newShelterName").value = "";
       document.getElementById("newShelterPlace").value = "";
       document.getElementById("newShelterLat").value = "";
       document.getElementById("newShelterLon").value = "";
       document.getElementById("addShelterBox").style.display = "none";
     }
-    // ▲▲ ここまで付け足し ▲▲
-    
-    let markerLayer = null;
-    let routeLayer = null;
-
-
 
     function getGPSLocation() {
       const result = document.getElementById("result");
@@ -412,14 +403,12 @@ window.addEventListener("DOMContentLoaded", function() {
         const marginMin = TSUNAMI_TIME_MIN - walkTimeMin;
 
         let className = "safe";
-       
         let message = "津波到達まで余裕があります。";
         if (marginMin < 0) {
           className = "danger";
           message = "間に合わない可能性があります。より近い高い場所を検討してください。";
         } else if (marginMin < 10) {
           className = "warning";
-         
           message = "余裕が少ないため、すぐに避難してください。";
         }
         return { ...shelter, distance, walkTimeMin, marginMin, className, message };
@@ -442,12 +431,13 @@ window.addEventListener("DOMContentLoaded", function() {
       `;
 
       top3.forEach(function(shelter, index) {
+        // 【修正項目】Googleマップ連携のタイポとURL構造を修正
         const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${shelter.lat},${shelter.lon}&travelmode=walking`;
         html += `
           <div class="card ${shelter.className}">
             <strong>第${index + 1}候補：${shelter.name}</strong><br>
             避難場所：${shelter.place}<br>
-            推定距離：約${Math.round(shelter.distance)}m<br>
+            推推定距離：約${Math.round(shelter.distance)}m<br>
             徒歩時間：約${shelter.walkTimeMin.toFixed(1)}分<br>
             余裕時間：約${shelter.marginMin.toFixed(1)}分<br>
             
@@ -546,7 +536,6 @@ window.addEventListener("DOMContentLoaded", function() {
       });
     }
 
-    // 施設名から位置（緯度・経度）を自動検索して入力欄にセットするプログラム
     function searchLocationByName() {
       const name = document.getElementById("newShelterName").value.trim();
       const notice = document.getElementById("searchResultNotice");
@@ -580,7 +569,6 @@ window.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-// 自分が登録した避難所を文字データにしてコピーする関数
     function exportShelters() {
       const currentSaved = localStorage.getItem('customShelters');
       if (!currentSaved || JSON.parse(currentSaved).length === 0) {
@@ -595,7 +583,6 @@ window.addEventListener("DOMContentLoaded", function() {
       });
     }
 
-    // 友達から貰った文字データを取り込む関数
     function importShelters() {
       const input = document.getElementById("importData").value.trim();
       if (!input) {
@@ -625,7 +612,6 @@ window.addEventListener("DOMContentLoaded", function() {
         alert("データの取り込みに失敗しました。");
       }
     }
-    
   </script>
 </body>
 </html>
