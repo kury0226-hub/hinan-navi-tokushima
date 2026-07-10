@@ -13,15 +13,15 @@
 
   <style>
     :root {
-      --bg: #ffffff;
-      --text: #000000;
-      --muted: #444444;
-      --header: #002b5c;
-      --primary: #0057d8;
-      --secondary: #d9d9d9;
-      --safe: #008000;
-      --warning: #ff8c00;
-      --danger: #d60000
+      --bg: #f3f4f6;
+      --text: #111827;
+      --muted: #4b5563;
+      --header: #0f172a;
+      --primary: #2563eb;
+      --secondary: #e5e7eb;
+      --safe: #16a34a;
+      --warning: #f59e0b;
+      --danger: #dc2626;
     }
 
     * { box-sizing: border-box; }
@@ -174,12 +174,18 @@
       </div>
       <div id="triviaText" style="font-size: 0.9em; color: var(--muted);">読み込み中...</div>
     </div>
-    
+
     <div class="card notice">
       <strong>スマホ用に使いやすくした版です。</strong><br>
       GPSで現在地を取得し、徳島市内の避難場所候補から近い場所を表示します。<br>
       位置情報が使えない場合は、手入力でも判定できます。
       <div class="small" id="secureNotice"></div>
+    </div>
+
+    <div class="card danger" style="border-left: 12px solid var(--danger);">
+      <strong>【デモ・授業用】緊急地震速報シミュレーション</strong><br>
+      <span class="small">ボタンを押して5秒以内にスマホの画面をロックするか、ホーム画面に戻ってください。</span>
+      <button class="danger-button" onclick="startEEWRun()">5秒後に疑似速報を受信</button>
     </div>
 
     <button class="primary" onclick="getGPSLocation()">GPSで現在地を取得する</button>
@@ -249,28 +255,71 @@
   </main>
 
   <script>
+    // 緊急地震速報シミュレーション用関数
+    function startEEWRun() {
+      if (!("Notification" in window)) {
+        alert("このブラウザは通知に対応していません。");
+        return;
+      }
+
+      Notification.requestPermission().then(function(permission) {
+        if (permission === "granted") {
+          alert("シミュレーションを開始します。5秒以内にアプリを閉じるか、画面をスリープにしてください。");
+        
+          setTimeout(function() {
+            if (navigator.serviceWorker.controller) {
+              navigator.serviceWorker.ready.then(function(registration) {
+                registration.showNotification("【緊急地震速報】徳島県沿岸", {
+                  body: "強い揺れに警戒してください。大津波警報が発表される可能性があります。タップして避難ナビを起動。",
+                  icon: "icons/icon-192.png",
+                  badge: "icons/icon-192.png",
+                  vibrate: [500, 200, 500, 200, 500],
+                  data: { url: "./index.html?eew=1" }
+                });
+              });
+            }
+          }, 5000);
+
+        } else {
+          alert("通知が許可されませんでした。ブラウザの設定で通知を許可してください。");
+        }
+      });
+    }
+
     const TSUNAMI_TIME_MIN = 41;
     const TSUNAMI_HEIGHT_M = 5.2;
-    const WALK_SPEED = 0.4;
-    const DETOUR_FACTOR = 1.6;
+    const WALK_SPEED = 0.8;
+    const DETOUR_FACTOR = 1.4;
 
-    // 【修正項目】ベースとなる避難所データの初期定義を追加
+    // ベースとなる避難所データの初期定義
     let shelters = [
-      { name: "徳島市役所", place: "本庁舎3階以上", lat: 34.065773, lon: 134.559344 },
-      { name: "城東小学校", place: "校舎3階以上・屋内運動場", lat: 34.073283, lon: 134.571439 },
-      { name: "徳島中央公園", place: "城山（高台）", lat: 34.075194, lon: 134.555544 }
+      { name: "徳島市立内町小学校", place: "校舎上階など", lat: 34.0710, lon: 134.5537 },
+      { name: "徳島市立新町小学校", place: "校舎上階など", lat: 34.0664, lon: 134.5427 },
+      { name: "徳島市立富田小学校", place: "校舎上階など", lat: 34.0613, lon: 134.5551 },
+      { name: "徳島市立昭和小学校", place: "校舎上階など", lat: 34.0561, lon: 134.5639 },
+      { name: "徳島市立福島小学校", place: "校舎上階など", lat: 34.0664, lon: 134.5761 },
+      { name: "徳島市立城東小学校", place: "校舎上階など", lat: 34.0684, lon: 134.5847 },
+      { name: "徳島市立助任小学校", place: "校舎上階など", lat: 34.0820, lon: 134.5610 },
+      { name: "徳島市立佐古小学校", place: "校舎上階など", lat: 34.0755, lon: 134.5380 },
+      { name: "徳島市立千松小学校", place: "校舎上階など", lat: 34.0827, lon: 134.5407 },
+      { name: "徳島市立加茂名小学校", place: "校舎上階など", lat: 34.0715, lon: 134.5190 },
+      { name: "徳島市立沖洲小学校", place: "校舎上階など", lat: 34.0740, lon: 134.5990 },
+      { name: "徳島市立津田小学校", place: "校舎上階など", lat: 34.0430, lon: 134.5850 },
+      { name: "徳島市立体育館（とくぎんトモニアリーナ）", place: "公共施設", lat: 34.0746, lon: 134.5525 },
+      { name: "徳島県庁", place: "公共施設", lat: 34.0659, lon: 134.5593 },
+      { name: "アスティとくしま", place: "公共施設", lat: 34.0526, lon: 134.5710 }
     ];
 
     let map = null;
     let markerLayer = null;
     let routeLayer = null;
 
-    // 【修正項目】DOMContentLoaded周辺の一元化とカッコの不整合を修正
-    window.addEventListener("DOMContentLoaded", function() {
+    // 画面ロード時の初期化処理
+    window.addEventListener("load", function() {
       // 1. 豆知識を表示
       showRandomTrivia();
       
-      // 2. 避難所の読み込み
+      // 2. カスタム避難所の読み込み
       const savedShelters = JSON.parse(localStorage.getItem('customShelters')) || [];
       shelters = shelters.concat(savedShelters);
 
@@ -279,7 +328,18 @@
       if (location.protocol !== "https:" && location.hostname !== "localhost" && location.protocol !== "file:") {
         notice.innerHTML = "<br>※GPSを使うには、httpsで始まるURLで公開して開く必要があります。";
       } else if (location.protocol === "file:") {
-        notice.innerHTML = "<br>※スマホでGPSを使うには、HTMLファイルを直接開くより、GitHub Pagesなどでhttps公開して開くのがおすすめです。";
+        notice.innerHTML = "<br>※スマホでGPSを使うには、HTMLファイルを直接開くより、GitHub Pagesなどでhttps公開して開うのがおすすめです。";
+      }
+
+      // 4. URLに ?eew=1 が含まれているかチェック（シミュレーション緊急起動）
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('eew') === '1') {
+        const result = document.getElementById("result");
+        result.innerHTML = "<div class='card danger'><strong>【緊急起動】地震速報連動モード</strong><br>津波避難判定のために自動で現在地を取得しています...</div>";
+        
+        setTimeout(function() {
+          getGPSLocation();
+        }, 1000);
       }
     });
 
@@ -403,15 +463,18 @@
         const marginMin = TSUNAMI_TIME_MIN - walkTimeMin;
 
         let className = "safe";
+        let level = "安全度：高い";
         let message = "津波到達まで余裕があります。";
         if (marginMin < 0) {
           className = "danger";
+          level = "危険";
           message = "間に合わない可能性があります。より近い高い場所を検討してください。";
         } else if (marginMin < 10) {
           className = "warning";
+          level = "注意";
           message = "余裕が少ないため、すぐに避難してください。";
         }
-        return { ...shelter, distance, walkTimeMin, marginMin, className, message };
+        return { ...shelter, distance, walkTimeMin, marginMin, className, level, message };
       }).sort(function(a, b) { return a.walkTimeMin - b.walkTimeMin; });
 
       const top3 = calculated.slice(0, 3);
@@ -431,16 +494,16 @@
       `;
 
       top3.forEach(function(shelter, index) {
-        // 【修正項目】Googleマップ連携のタイポとURL構造を修正
-       const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${shelter.lat},${shelter.lon}&travelmode=walking`;
+        // 【修正完了】タイポおよび不正なURL構造をGoogle公式の徒歩ルート共有用URLに一新
+        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${shelter.lat},${shelter.lon}&travelmode=walking`;
         html += `
           <div class="card ${shelter.className}">
             <strong>第${index + 1}候補：${shelter.name}</strong><br>
             避難場所：${shelter.place}<br>
-            推推定距離：約${Math.round(shelter.distance)}m<br>
+            推定距離：約${Math.round(shelter.distance)}m<br>
             徒歩時間：約${shelter.walkTimeMin.toFixed(1)}分<br>
             余裕時間：約${shelter.marginMin.toFixed(1)}分<br>
-            
+            <strong>${shelter.level}</strong><br>
             ${shelter.message}
             <a class="map-link primary" href="${googleMapsUrl}" target="_blank" rel="noopener">Googleマップで徒歩経路を開く</a>
           </div>
