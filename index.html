@@ -432,7 +432,7 @@
 
       top3.forEach(function(shelter, index) {
         // 【修正項目】Googleマップ連携のタイポとURL構造を修正
-        const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${shelter.lat},${shelter.lon}&travelmode=walking`;
+       const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${shelter.lat},${shelter.lon}&travelmode=walking`;
         html += `
           <div class="card ${shelter.className}">
             <strong>第${index + 1}候補：${shelter.name}</strong><br>
