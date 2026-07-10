@@ -255,36 +255,36 @@
   </main>
 
   <script>
-    // 緊急地震速報シミュレーション用関数
-    function startEEWRun() {
-      if (!("Notification" in window)) {
-        alert("このブラウザは通知に対応していません。");
-        return;
-      }
-
-      Notification.requestPermission().then(function(permission) {
-        if (permission === "granted") {
-          alert("シミュレーションを開始します。5秒以内にアプリを閉じるか、画面をスリープにしてください。");
-        
-          setTimeout(function() {
-            if (navigator.serviceWorker.controller) {
-              navigator.serviceWorker.ready.then(function(registration) {
-                registration.showNotification("【緊急地震速報】徳島県沿岸", {
-                  body: "強い揺れに警戒してください。大津波警報が発表される可能性があります。タップして避難ナビを起動。",
-                  icon: "icons/icon-192.png",
-                  badge: "icons/icon-192.png",
-                  vibrate: [500, 200, 500, 200, 500],
-                  data: { url: "./index.html?eew=1" }
-                });
-              });
-            }
-          }, 5000);
-
-        } else {
-          alert("通知が許可されませんでした。ブラウザの設定で通知を許可してください。");
-        }
-      });
+    // 緊急地震速報シミュレーション用関数（ここからきれいに置き換える）
+  function startEEWRun() {
+    if (!("Notification" in window)) {
+      alert("このブラウザは通知に対応していません。");
+      return;
     }
+
+    Notification.requestPermission().then(function(permission) {
+      if (permission === "granted") {
+        alert("シミュレーションを開始します。5秒以内にアプリを閉じるか、画面をスリープにしてください。");
+    
+        setTimeout(function() {
+          if (navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(function(registration) {
+              registration.showNotification("【緊急地震速報】徳島県沿岸", {
+                body: "強い揺れに警戒してください。大津波警報が発表される可能性があります。タップして避難ナビを起動。",
+                icon: "icons/icon-192.png",
+                badge: "icons/icon-192.png",
+                vibrate: [500, 200, 500, 200, 500],
+                data: { url: "./index.html?eew=1" }
+              });
+            });
+          }
+        }, 5000);
+
+      } else {
+        alert("通知が許可されませんでした。ブラウザの設定で通知を許可してください。");
+      }
+    });
+  }
 
     const TSUNAMI_TIME_MIN = 41;
     const TSUNAMI_HEIGHT_M = 5.2;
