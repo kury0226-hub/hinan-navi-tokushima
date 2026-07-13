@@ -254,6 +254,51 @@
     <div id="map"></div>
   </main>
 
+  // 本物の緊急地震速報をリアルタイム受信する関数
+  function connectToEEW() {
+    // 防災情報をリアルタイム配信しているサーバーのURL（例）
+    const socketUrl = "wss://ws-api.wolfx.jp/jma_eew"; 
+    const socket = new WebSocket(socketUrl);
+  
+    // サーバーとの接続が確立したとき
+    socket.onopen = function() {
+      console.log("緊急地震速報サーバーへの常時接続に成功しました。待機中...");
+    };
+  
+    // サーバーから「地震が起きたぞ！」とデータが送られてきたとき
+    socket.onmessage = function(event) {
+      // 送られてきたデータをプログラムで読める形に変換
+      const eewData = JSON.parse(event.data);
+  
+      // 例：もし発表された地域（area）に「徳島」が含まれていたら
+      if (eewData.area.includes("徳島")) {
+        
+        // 🔔 ここで、シミュレーションで作った通知機能を自動起動！
+        if (navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then(function(registration) {
+            registration.showNotification("【緊急地震速報】" + eewData.area, {
+              body: "強い揺れに警戒してください！すぐに避難を開始してください。",
+              icon: "icons/icon-192.png",
+              badge: "icons/icon-192.png",
+              vibrate: [500, 200, 500, 200, 500],
+              data: { url: "./index.html?eew=1" } // 通知タップで避難ナビモードへ
+            });
+          });
+        }
+  
+      }
+    };
+  
+    // 万が一接続が切れたら、自動で再接続する処理
+    socket.onclose = function() {
+      console.log("接続が切れました。5秒後に再接続します...");
+      setTimeout(connectToEEW, 5000);
+    };
+  }
+  
+  // アプリ起動時にこの監視関数を実行しておく
+  connectToEEW();
+
   <script>
     // 緊急地震速報シミュレーション用関数（ここからきれいに置き換える）
   function startEEWRun() {
